@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { start_realtime, resetAudio, InputState, eventEmitter } from "./main";
 
-const RealtimeUI: React.FC = () => {
+const RealtimeUI = () => {
   const [inputState, setInputState] = useState<InputState>(
     InputState.ReadyToStart
   );
