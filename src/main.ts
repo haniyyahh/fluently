@@ -1,6 +1,3 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-
 import { Player } from "./player.ts";
 import { Recorder } from "./recorder.ts";
 import "./style.css";
@@ -10,19 +7,28 @@ let realtimeStreaming: LowLevelRTClient;
 let audioRecorder: Recorder;
 let audioPlayer: Player;
 
-async function start_realtime(endpoint: string, apiKey: string, deploymentOrModel: string) {
-  if (isAzureOpenAI()) {
-    realtimeStreaming = new LowLevelRTClient(new URL(endpoint), { key: apiKey }, { deployment: deploymentOrModel });
-  } else {
-    realtimeStreaming = new LowLevelRTClient({ key: apiKey }, { model: deploymentOrModel });
-  }
+const endpoint =
+  "https://parone-test-3.openai.azure.com/openai/realtime?api-version=2024-10-01-preview&deployment=gpt-4o-realtime-preview";
+const apiKey = "a883e853f73746d7ae35fa953468fc9a";
+const deploymentOrModel = "gpt-4o-realtime-preview";
+const temperature = 0.7;
+const voice = "alloy";
+
+async function start_realtime() {
+  realtimeStreaming = new LowLevelRTClient(
+    new URL(endpoint),
+    { key: apiKey },
+    { deployment: deploymentOrModel }
+  );
 
   try {
     console.log("sending session config");
     await realtimeStreaming.send(createConfigMessage());
   } catch (error) {
     console.log(error);
-    makeNewTextBlock("[Connection error]: Unable to send initial config message. Please check your endpoint and authentication details.");
+    makeNewTextBlock(
+      "[Connection error]: Unable to send initial config message. Please check your endpoint and authentication details."
+    );
     setFormInputState(InputState.ReadyToStart);
     return;
   }
@@ -30,27 +36,19 @@ async function start_realtime(endpoint: string, apiKey: string, deploymentOrMode
   await Promise.all([resetAudio(true), handleRealtimeMessages()]);
 }
 
-function createConfigMessage() : SessionUpdateMessage {
-
-  let configMessage : SessionUpdateMessage = {
+function createConfigMessage(): SessionUpdateMessage {
+  let configMessage: SessionUpdateMessage = {
     type: "session.update",
     session: {
       turn_detection: {
         type: "server_vad",
       },
       input_audio_transcription: {
-        model: "whisper-1"
-      }
-    }
+        model: "whisper-1",
+      },
+    },
   };
 
-  const systemMessage = getSystemMessage();
-  const temperature = getTemperature();
-  const voice = getVoice();
-
-  if (systemMessage) {
-    configMessage.session.instructions = systemMessage;
-  }
   if (!isNaN(temperature)) {
     configMessage.session.temperature = temperature;
   }
@@ -96,7 +94,7 @@ async function handleRealtimeMessages() {
         break;
       default:
         consoleLog = JSON.stringify(message, null, 2);
-        break
+        break;
     }
     if (consoleLog) {
       console.log(consoleLog);
@@ -134,7 +132,6 @@ function processAudioRecordingBuffer(data: Buffer) {
       });
     }
   }
-
 }
 
 async function resetAudio(startRecording: boolean) {
@@ -160,22 +157,12 @@ async function resetAudio(startRecording: boolean) {
  */
 
 const formReceivedTextContainer = document.querySelector<HTMLDivElement>(
-  "#received-text-container",
+  "#received-text-container"
 )!;
 const formStartButton =
   document.querySelector<HTMLButtonElement>("#start-recording")!;
 const formStopButton =
   document.querySelector<HTMLButtonElement>("#stop-recording")!;
-const formEndpointField =
-  document.querySelector<HTMLInputElement>("#endpoint")!;
-const formAzureToggle =
-  document.querySelector<HTMLInputElement>("#azure-toggle")!;
-const formApiKeyField = document.querySelector<HTMLInputElement>("#api-key")!;
-const formDeploymentOrModelField = document.querySelector<HTMLInputElement>("#deployment-or-model")!;
-const formSessionInstructionsField =
-  document.querySelector<HTMLTextAreaElement>("#session-instructions")!;
-const formTemperatureField = document.querySelector<HTMLInputElement>("#temperature")!;
-const formVoiceSelection = document.querySelector<HTMLInputElement>("#voice")!;
 
 let latestInputSpeechBlock: Element;
 
@@ -185,35 +172,9 @@ enum InputState {
   ReadyToStop,
 }
 
-function isAzureOpenAI(): boolean {
-  return formAzureToggle.checked;
-}
-
-function guessIfIsAzureOpenAI() {
-  const endpoint = (formEndpointField.value || "").trim();
-  formAzureToggle.checked = endpoint.indexOf('azure') > -1;
-}
-
 function setFormInputState(state: InputState) {
-  formEndpointField.disabled = state != InputState.ReadyToStart;
-  formApiKeyField.disabled = state != InputState.ReadyToStart;
-  formDeploymentOrModelField.disabled = state != InputState.ReadyToStart;
   formStartButton.disabled = state != InputState.ReadyToStart;
   formStopButton.disabled = state != InputState.ReadyToStop;
-  formSessionInstructionsField.disabled = state != InputState.ReadyToStart;
-  formAzureToggle.disabled = state != InputState.ReadyToStart;
-}
-
-function getSystemMessage(): string {
-  return formSessionInstructionsField.value || "";
-}
-
-function getTemperature(): number {
-  return parseFloat(formTemperatureField.value);
-}
-
-function getVoice(): "alloy" | "echo" | "shimmer" {
-  return formVoiceSelection.value as "alloy" | "echo" | "shimmer";
 }
 
 function makeNewTextBlock(text: string = "") {
@@ -233,27 +194,8 @@ function appendToTextBlock(text: string) {
 formStartButton.addEventListener("click", async () => {
   setFormInputState(InputState.Working);
 
-  const endpoint = formEndpointField.value.trim();
-  const key = formApiKeyField.value.trim();
-  const deploymentOrModel = formDeploymentOrModelField.value.trim();
-
-  if (isAzureOpenAI() && !endpoint && !deploymentOrModel) {
-    alert("Endpoint and Deployment are required for Azure OpenAI");
-    return;
-  }
-
-  if (!isAzureOpenAI() && !deploymentOrModel) {
-    alert("Model is required for OpenAI");
-    return;
-  }
-
-  if (!key) {
-    alert("API Key is required");
-    return;
-  }
-
   try {
-    start_realtime(endpoint, key, deploymentOrModel);
+    start_realtime();
   } catch (error) {
     console.log(error);
     setFormInputState(InputState.ReadyToStart);
@@ -267,7 +209,7 @@ formStopButton.addEventListener("click", async () => {
   setFormInputState(InputState.ReadyToStart);
 });
 
-formEndpointField.addEventListener('change', async () => {
-  guessIfIsAzureOpenAI();
-});
-guessIfIsAzureOpenAI();
+// src/main.ts
+export { start_realtime, resetAudio, InputState };
+
+// ... rest of the code remains unchanged
