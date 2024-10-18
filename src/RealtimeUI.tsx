@@ -1,21 +1,31 @@
-// src/RealtimeUI.tsx
 import React, { useState, useEffect } from "react";
-import { start_realtime, resetAudio, InputState } from "./main";
+import { start_realtime, resetAudio, InputState, eventEmitter } from "./main";
 
 const RealtimeUI: React.FC = () => {
   const [inputState, setInputState] = useState<InputState>(
     InputState.ReadyToStart
   );
   const [receivedText, setReceivedText] = useState<string[]>([]);
+  const [currentLine, setCurrentLine] = useState<string>("");
 
   useEffect(() => {
-    const formReceivedTextContainer = document.querySelector<HTMLDivElement>(
-      "#received-text-container"
-    )!;
-    formReceivedTextContainer.innerHTML = receivedText
-      .map((text) => `<p>${text}</p>`)
-      .join("");
-  }, [receivedText]);
+    const handleTextUpdate = (newText: string) => {
+      setCurrentLine((prevLine) => {
+        const updatedLine = prevLine + newText;
+        if (newText.includes("\n")) {
+          setReceivedText((prevText) => [...prevText, updatedLine.trim()]);
+          return "";
+        }
+        return updatedLine;
+      });
+    };
+
+    eventEmitter.on("textUpdate", handleTextUpdate);
+
+    return () => {
+      eventEmitter.off("textUpdate", handleTextUpdate);
+    };
+  }, []);
 
   const handleStartClick = async () => {
     setInputState(InputState.Working);
@@ -35,8 +45,13 @@ const RealtimeUI: React.FC = () => {
   };
 
   return (
-    <div>
-      <div id="received-text-container"></div>
+    <div className="container">
+      <div id="received-text-container">
+        {receivedText.map((text, index) => (
+          <p key={index}>{text}</p>
+        ))}
+        {currentLine && <p>{currentLine}</p>}
+      </div>
       <div className="controls">
         <div className="button-group">
           <button

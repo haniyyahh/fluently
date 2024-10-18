@@ -1,6 +1,7 @@
-import { Player } from "./player.ts";
-import { Recorder } from "./recorder.ts";
-import "./style.css";
+// src/main.ts
+import { EventEmitter } from "eventemitter3";
+import { Player } from "./player";
+import { Recorder } from "./recorder";
 import { LowLevelRTClient, SessionUpdateMessage } from "rt-client";
 
 let realtimeStreaming: LowLevelRTClient;
@@ -14,6 +15,8 @@ const deploymentOrModel = "gpt-4o-realtime-preview";
 const temperature = 0.7;
 const voice = "alloy";
 
+const eventEmitter = new EventEmitter();
+
 async function start_realtime() {
   realtimeStreaming = new LowLevelRTClient(
     new URL(endpoint),
@@ -26,11 +29,9 @@ async function start_realtime() {
     await realtimeStreaming.send(createConfigMessage());
   } catch (error) {
     console.log(error);
-    makeNewTextBlock(
+    throw new Error(
       "[Connection error]: Unable to send initial config message. Please check your endpoint and authentication details."
     );
-    setFormInputState(InputState.ReadyToStart);
-    return;
   }
   console.log("sent");
   await Promise.all([resetAudio(true), handleRealtimeMessages()]);
@@ -65,12 +66,11 @@ async function handleRealtimeMessages() {
 
     switch (message.type) {
       case "session.created":
-        setFormInputState(InputState.ReadyToStop);
-        makeNewTextBlock("<< Session Started >>");
-        makeNewTextBlock();
+        // Notify React component
         break;
       case "response.audio_transcript.delta":
-        appendToTextBlock(message.delta);
+        // Notify React component
+        eventEmitter.emit("textUpdate", message.delta);
         break;
       case "response.audio.delta":
         const binary = atob(message.delta);
@@ -80,17 +80,14 @@ async function handleRealtimeMessages() {
         break;
 
       case "input_audio_buffer.speech_started":
-        makeNewTextBlock("<< Speech Started >>");
-        let textElements = formReceivedTextContainer.children;
-        latestInputSpeechBlock = textElements[textElements.length - 1];
-        makeNewTextBlock();
+        // Notify React component
         audioPlayer.clear();
         break;
       case "conversation.item.input_audio_transcription.completed":
-        latestInputSpeechBlock.textContent += " User: " + message.transcript;
+        // Notify React component
         break;
       case "response.done":
-        formReceivedTextContainer.appendChild(document.createElement("hr"));
+        // Notify React component
         break;
       default:
         consoleLog = JSON.stringify(message, null, 2);
@@ -152,64 +149,10 @@ async function resetAudio(startRecording: boolean) {
   }
 }
 
-/**
- * UI and controls
- */
-
-const formReceivedTextContainer = document.querySelector<HTMLDivElement>(
-  "#received-text-container"
-)!;
-const formStartButton =
-  document.querySelector<HTMLButtonElement>("#start-recording")!;
-const formStopButton =
-  document.querySelector<HTMLButtonElement>("#stop-recording")!;
-
-let latestInputSpeechBlock: Element;
-
 enum InputState {
   Working,
   ReadyToStart,
   ReadyToStop,
 }
 
-function setFormInputState(state: InputState) {
-  formStartButton.disabled = state != InputState.ReadyToStart;
-  formStopButton.disabled = state != InputState.ReadyToStop;
-}
-
-function makeNewTextBlock(text: string = "") {
-  let newElement = document.createElement("p");
-  newElement.textContent = text;
-  formReceivedTextContainer.appendChild(newElement);
-}
-
-function appendToTextBlock(text: string) {
-  let textElements = formReceivedTextContainer.children;
-  if (textElements.length == 0) {
-    makeNewTextBlock();
-  }
-  textElements[textElements.length - 1].textContent += text;
-}
-
-formStartButton.addEventListener("click", async () => {
-  setFormInputState(InputState.Working);
-
-  try {
-    start_realtime();
-  } catch (error) {
-    console.log(error);
-    setFormInputState(InputState.ReadyToStart);
-  }
-});
-
-formStopButton.addEventListener("click", async () => {
-  setFormInputState(InputState.Working);
-  resetAudio(false);
-  realtimeStreaming.close();
-  setFormInputState(InputState.ReadyToStart);
-});
-
-// src/main.ts
-export { start_realtime, resetAudio, InputState };
-
-// ... rest of the code remains unchanged
+export { start_realtime, resetAudio, InputState, eventEmitter };
