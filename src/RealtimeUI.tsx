@@ -40,31 +40,40 @@ const RealtimeUI: React.FC = () => {
 
   const handleStopClick = async () => {
     setInputState(InputState.Working);
-    await resetAudio(false);
-    setInputState(InputState.ReadyToStart);
+    try {
+      await resetAudio(false);
+      setInputState(InputState.ReadyToStart);
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
-    <div className="container">
-      <div id="received-text-container">
+    <div className="flex h-screen">
+      <div className="flex-6 overflow-y-auto p-4 bg-gray-200 border border-blue-500 rounded-lg mr-8">
         {receivedText.map((text, index) => (
           <p key={index}>{text}</p>
         ))}
-        {currentLine && <p>{currentLine}</p>}
       </div>
-      <div className="controls">
-        <div className="button-group">
+      <div className="flex-2 flex flex-col justify-center items-end">
+        <div className="flex flex-col mb-4 w-full">
+          <input
+            type="text"
+            className="rounded-lg border border-transparent p-3 text-lg font-medium bg-gray-200 mb-2 transition-colors hover:border-blue-500 focus:outline-none focus:ring-4"
+            value={currentLine}
+            readOnly
+          />
+        </div>
+        <div className="flex gap-2 mb-4">
           <button
-            id="start-recording"
-            type="button"
+            className="rounded-lg border border-transparent p-3 text-lg font-medium bg-blue-600 text-white transition-colors hover:border-blue-500 focus:outline-none focus:ring-4 disabled:border-gray-400 disabled:bg-gray-300 disabled:text-gray-600"
             onClick={handleStartClick}
             disabled={inputState !== InputState.ReadyToStart}
           >
-            Record
+            Start
           </button>
           <button
-            id="stop-recording"
-            type="button"
+            className="rounded-lg border border-transparent p-3 text-lg font-medium bg-red-600 text-white transition-colors hover:border-red-500 focus:outline-none focus:ring-4 disabled:border-gray-400 disabled:bg-gray-300 disabled:text-gray-600"
             onClick={handleStopClick}
             disabled={inputState !== InputState.ReadyToStop}
           >

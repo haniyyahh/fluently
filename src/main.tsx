@@ -8,8 +8,8 @@ const rootElement = document.getElementById("root");
 if (rootElement) {
   const root = createRoot(rootElement);
   root.render(
-    <React.StrictMode>
-      <RealtimeUI />
-    </React.StrictMode>
+    // <React.StrictMode>
+    <RealtimeUI />
+    // </React.StrictMode>
   );
 }
